@@ -25,21 +25,53 @@ def jiami(shuju):
     return f"04{miwen.hex()}"
 
 
+import sys
+from pathlib import Path
+
+_FILE_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _FILE_DIR.parent
+for _p in (_FILE_DIR, _PROJECT_ROOT):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
+import threading
+from config import load_config
+
+# ==================== Token 缓存（线程安全） ====================
+# 避免并发时每个线程都去登录，导致 SSO 冲突
+_cached_token = None
+_token_lock = threading.Lock()
+
+
 def login():
-    #登录api地址（注意：是SSO地址，不是业务地址！）
-    url = "https://saas-sso.shuyixin.cn/api/permission/permit/authenticate/accountPassword"
-    #登录请求体
-    body = {
-        "accountName": "19936284010",
-        "password": "Zht010203@010203",
-        "app": {"appCode": "Index-Platform-PC"}
-    }
-    #先加密，再发送（不能直接发明文！）
-    miwen = jiami(json.dumps(body))
-    response = requests.post(url, json=miwen)
-    #返回token
-    jieguo = response.json()
-    return jieguo["data"]["token"]["accessToken"]
+    global _cached_token
+
+    # 有缓存直接返回（快速路径，不加锁）
+    if _cached_token is not None:
+        return _cached_token
+
+    with _token_lock:
+        # 双重检查：拿到锁后再确认一次
+        if _cached_token is not None:
+            return _cached_token
+
+        cfg = load_config()
+
+        #登录api地址（注意：是SSO地址，不是业务地址！）
+        url = "https://saas-sso.shuyixin.cn/api/permission/permit/authenticate/accountPassword"
+        #登录请求体
+        body = {
+            "accountName": cfg["login"]["accountName"],
+            "password": cfg["login"]["password"],
+            "app": {"appCode": "Index-Platform-PC"}
+        }
+        #先加密，再发送（不能直接发明文！）
+        miwen = jiami(json.dumps(body))
+        response = requests.post(url, json=miwen)
+        #返回token
+        jieguo = response.json()
+        _cached_token = jieguo["data"]["token"]["accessToken"]
+        return _cached_token
 
 
 

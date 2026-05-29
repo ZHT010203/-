@@ -5,6 +5,15 @@
 import pytest
 import json
 import pandas as pd
+import math
+
+
+#函数，用来判断一个字段里面的内容是不是NaN
+def is_nan(value):
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value
+
 
 
 def read_excel(test_case_path: str):
@@ -20,10 +29,10 @@ def read_excel(test_case_path: str):
     for index, row in data.iterrows():
         #每次循环创建一个新字典
         test_case_dict = {}
-        test_case_dict["Path"] = row["Path"]
-        test_case_dict["接口入参"] = row["接口入参"]
-        test_case_dict["预期结果"] = row["预期结果"]
-        test_case_dict["数据库造数构造"] = row["数据库造数构造"]
+        test_case_dict["Path"] = is_nan(row["Path"])
+        test_case_dict["接口入参"] = is_nan(row["接口入参"])
+        test_case_dict["预期结果"] = is_nan(row["预期结果"])
+        test_case_dict["数据库造数构造"] = is_nan(row["数据库造数构造"])
         test_case_list.append(test_case_dict)
     return test_case_list
     
